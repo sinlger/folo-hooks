@@ -1,0 +1,17 @@
+{
+  "name": "folo-hooks-receiver",
+  "version": "1.0.0",
+  "description": "Receive Folo Actions webhooks with Express on Vercel",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "vercel": "^44.4.1",
+    "ws": "^8.12.0"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
