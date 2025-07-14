@@ -15,24 +15,23 @@ app.post('/api/webhook', (req, res) => {
     return res.status(400).send('Invalid webhook payload.');
   }
 
-  // Log the structured data to the console
-  console.log('--- New Entry ---');
-  console.log(`Title: ${entry.title}`);
-  console.log(`URL: ${entry.url}`);
-  console.log(`Feed: ${feed.title}`);
-  console.log('-----------------');
-
-  // Create a simplified object for logging
-  const displayData = {
-    '标题': entry.title,
-    '链接': entry.url,
-    '来源': feed.title,
-    '发布时间': new Date(entry.publishedAt).toLocaleString(),
-    '作者': entry.author
+  // Create a structured log entry
+  const logEntry = {
+    message: 'New webhook entry received from Folo Actions',
+    entry: {
+      title: entry.title,
+      url: entry.url,
+      publishedAt: entry.publishedAt,
+      author: entry.author
+    },
+    feed: {
+      title: feed.title
+    },
+    receivedAt: new Date().toISOString()
   };
 
-  // You can do something with displayData here, like saving to a database.
-  console.log(displayData);
+  // Log the entire entry as a single JSON string for better readability in Vercel Logs
+  console.log(JSON.stringify(logEntry, null, 2));
 
   res.status(200).send('Webhook received successfully.');
 });
