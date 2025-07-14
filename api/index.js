@@ -1,40 +1,5 @@
 const express = require('express');
-const http = require('http');
-const { WebSocketServer } = require('ws');
-
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
-
-// Store connected clients
-const clients = new Set();
-
-wss.on('connection', (ws) => {
-  console.log('Client connected');
-  clients.add(ws);
-
-  ws.on('close', () => {
-    console.log('Client disconnected');
-    clients.delete(ws);
-  });
-});
-
-// Function to broadcast data to all clients
-function broadcast(data) {
-  const jsonData = JSON.stringify(data);
-  for (const client of clients) {
-    if (client.readyState === client.OPEN) {
-      client.send(jsonData);
-    }
-  }
-}
-
-// Vercel can parse the body for us, or we can use express.json()
-// For simplicity, we'll assume Vercel handles it or use the built-in middleware.
-const path = require('path');
-
-// Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use(express.json({ extended: false }));
 
@@ -57,7 +22,7 @@ app.post('/api/webhook', (req, res) => {
   console.log(`Feed: ${feed.title}`);
   console.log('-----------------');
 
-  // Create a simplified object for the frontend with Chinese keys
+  // Create a simplified object for logging
   const displayData = {
     '标题': entry.title,
     '链接': entry.url,
@@ -66,8 +31,8 @@ app.post('/api/webhook', (req, res) => {
     '作者': entry.author
   };
 
-  // Broadcast the simplified data to all connected WebSocket clients
-  broadcast(displayData);
+  // You can do something with displayData here, like saving to a database.
+  console.log(displayData);
 
   res.status(200).send('Webhook received successfully.');
 });
@@ -75,10 +40,10 @@ app.post('/api/webhook', (req, res) => {
 // Start the server for local development
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
+  app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
 }
 
-// Export the server for Vercel
-module.exports = server;
+// Export the app for Vercel
+module.exports = app;

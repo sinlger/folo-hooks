@@ -28,25 +28,21 @@ The server listens for POST requests on the `/api/webhook` endpoint. When a webh
 
     The server will start, and you'll see a message like `Server is running on http://localhost:3000`.
 
-3.  **Open the viewer page:**
-
-    Open your web browser and navigate to `http://localhost:3000`. You should see the "Folo Webhook Real-time Viewer" page, and it will connect to the WebSocket server.
-
-4.  **Simulate a webhook:**
+3.  **Simulate a webhook:**
 
     To test the webhook functionality, you need to send a POST request to the webhook endpoint. You can use a tool like `curl` or a GUI API client like Postman.
 
     **Using `curl`:**
 
-    Open a new terminal window and run the following command:
+    Open a new terminal window and run the following command. This example simulates the data structure sent by Folo Actions.
 
     ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{"event":"test_event","payload":{"message":"Hello from local test!"}}' http://localhost:3000/api/webhook
+    curl -X POST -H "Content-Type: application/json" -d '{"entry":{"title":"Example Title","url":"http://example.com/article","publishedAt":"2024-01-01T12:00:00Z","author":"John Doe"},"feed":{"title":"Example Feed"}}' http://localhost:3000/api/webhook
     ```
 
-5.  **Observe the result:**
+4.  **Observe the result:**
 
-    After running the `curl` command, you should see the JSON payload appear instantly on the viewer page in your browser. You will also see the log output in the terminal where your server is running.
+    After running the `curl` command, you will see the log output in the terminal where your server is running. The server will print the structured data from the webhook payload.
 
 ## Deployment to Vercel
 
