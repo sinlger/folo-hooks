@@ -8,6 +8,8 @@ require('dotenv').config();
 
 const https = require('https');
 const dayjs = require('dayjs');
+const fs = require('fs');
+const path = require('path');
 const { gennewsprompt } = require('./prompt/prompt');
 
 /**
@@ -257,7 +259,7 @@ async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
       reject(new Error('请求超时'));
     });
 
-    // 设置超时时间为90秒
+    // 设置超时时间为5分钟
     req.setTimeout(1000*60*5);
     
     // 发送请求数据
@@ -265,6 +267,64 @@ async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
     req.end();
   });
 }
+
+/**
+ * 生成txt文件并写入数据
+ * @param {string} fileName - 文件名（不包含扩展名）
+ * @param {string} content - 要写入的内容
+ * @param {string} dirPath - 文件保存目录（可选，默认为当前目录下的data文件夹）
+ * @returns {Promise<string>} 返回文件的完整路径
+ */
+async function generateTxtFile(fileName, content, dirPath = null) {
+  try {
+    // 如果没有指定目录，使用默认的data目录
+    const defaultDir = path.join(process.cwd(), 'data');
+    const targetDir = dirPath || defaultDir;
+    
+    // 确保目录存在，如果不存在则创建
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    // 生成文件名（添加时间戳避免重复）
+    const timestamp = dayjs().format('YYYYMMDD_HHmmss');
+    const fullFileName = `${fileName}_${timestamp}.txt`;
+    const filePath = path.join(targetDir, fullFileName);
+    
+    // 写入文件
+    await fs.promises.writeFile(filePath, content, 'utf8');
+    
+    console.log(`文件生成成功: ${filePath}`);
+    return filePath;
+  } catch (error) {
+    console.error('生成txt文件失败:', error);
+    throw new Error(`文件生成失败: ${error.message}`);
+  }
+}
+
+/**
+ * 追加内容到txt文件
+ * @param {string} filePath - 文件路径
+ * @param {string} content - 要追加的内容
+ * @returns {Promise<void>}
+ */
+async function appendToTxtFile(filePath, content) {
+  try {
+    // 确保文件所在目录存在
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // 追加内容到文件
+    await fs.promises.appendFile(filePath, content, 'utf8');
+    console.log(`内容已追加到文件: ${filePath}`);
+  } catch (error) {
+    console.error('追加内容到文件失败:', error);
+    throw new Error(`追加内容失败: ${error.message}`);
+  }
+}
+
 module.exports = {
   formatTimestamp,
   successResponse,
@@ -276,5 +336,7 @@ module.exports = {
   hasEnvVar,
   getEnvVar,
   gennewsprompt,
-  genNewsCollection
+  genNewsCollection,
+  generateTxtFile,
+  appendToTxtFile
 };
