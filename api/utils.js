@@ -3,7 +3,12 @@
  * 包含项目中常用的工具函数和辅助方法
  */
 
+// 加载环境变量
+require('dotenv').config();
+
+const https = require('https');
 const dayjs = require('dayjs');
+const { gennewsprompt } = require('./prompt/prompt');
 
 /**
  * 格式化时间戳
@@ -43,15 +48,15 @@ function errorResponse(message = '操作失败', error = null, code = 500) {
     message,
     timestamp: formatTimestamp()
   };
-  
+
   if (error) {
     response.error = error;
   }
-  
+
   if (code !== 500) {
     response.code = code;
   }
-  
+
   return response;
 }
 
@@ -63,13 +68,13 @@ function errorResponse(message = '操作失败', error = null, code = 500) {
  */
 function validateRequiredParams(params, requiredFields) {
   const missingFields = [];
-  
+
   for (const field of requiredFields) {
     if (!params[field] || params[field].toString().trim() === '') {
       missingFields.push(field);
     }
   }
-  
+
   if (missingFields.length > 0) {
     return errorResponse(
       `缺少必要参数: ${missingFields.join(', ')}`,
@@ -77,7 +82,7 @@ function validateRequiredParams(params, requiredFields) {
       400
     );
   }
-  
+
   return null;
 }
 
@@ -137,7 +142,129 @@ function hasEnvVar(varName) {
 function getEnvVar(varName, defaultValue = null) {
   return process.env[varName] || defaultValue;
 }
+/**
+ * 生成新闻摘要的异步方法
+ * @param {string} userContent - 用户输入的新闻内容
+ * @param {string} systemPrompt - 系统提示词，默认使用gennewsprompt
+ * @returns {Promise<object>} 返回API响应结果
+ */
+async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
+  return new Promise((resolve, reject) => {
+    // 验证必要参数
+    if (!userContent) {
+      reject(new Error('用户内容不能为空'));
+      return;
+    }
 
+    // 验证环境变量
+    const apiKey = getEnvVar('SILI_API_KEY');
+    const apiUrl = getEnvVar('SILI_CHART_URL');
+    
+    if (!apiKey || !apiUrl) {
+      reject(new Error('缺少必要的环境变量: SILI_API_KEY 或 SILI_CHART_URL'));
+      return;
+    }
+
+    const requestData = JSON.stringify({
+      model: 'Qwen/Qwen3-235B-A22B-Instruct-2507',
+      stream: false,
+      max_tokens: 8192,
+      temperature: 0.6,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userContent
+        }
+      ]
+    });
+
+    const options = {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'folo-hooks/1.0.0'
+      }
+    };
+
+    const url = new URL(apiUrl);
+    const requestOptions = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname,
+      method: options.method,
+      headers: options.headers
+    };
+
+    const req = https.request(requestOptions, (res) => {
+      const chunks = [];
+      let totalLength = 0;
+      
+      // 设置响应编码
+      res.setEncoding('utf8');
+      
+      res.on('data', (chunk) => {
+        chunks.push(chunk);
+        totalLength += chunk.length;
+        
+        // 防止响应过大（限制为10MB）
+        if (totalLength > 10 * 1024 * 1024) {
+          req.destroy();
+          reject(new Error('响应数据过大'));
+          return;
+        }
+      });
+      
+      res.on('end', () => {
+        try {
+          // 使用数组join比字符串拼接更高效
+          const data = chunks.join('');
+          
+          if (!data) {
+            reject(new Error('响应数据为空'));
+            return;
+          }
+          
+          const response = JSON.parse(data);
+          
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({
+              success: true,
+              data: response,
+              statusCode: res.statusCode,
+              timestamp: formatTimestamp(),
+              responseSize: totalLength
+            });
+          } else {
+            reject(new Error(`API请求失败: ${res.statusCode} - ${response.error?.message || '未知错误'}`));
+          }
+        } catch (parseError) {
+          reject(new Error(`响应解析失败: ${parseError.message}`));
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(new Error(`请求失败: ${error.message}`));
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('请求超时'));
+    });
+
+    // 设置超时时间为90秒
+    req.setTimeout(1000*60*5);
+    
+    // 发送请求数据
+    req.write(requestData);
+    req.end();
+  });
+}
 module.exports = {
   formatTimestamp,
   successResponse,
@@ -147,5 +274,7 @@ module.exports = {
   delay,
   generateRandomString,
   hasEnvVar,
-  getEnvVar
+  getEnvVar,
+  gennewsprompt,
+  genNewsCollection
 };

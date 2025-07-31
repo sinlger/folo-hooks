@@ -403,6 +403,188 @@
           }
         }
       }
+    },
+    "/silichart": {
+      "get": {
+        "summary": "获取SiliChart配置信息",
+        "description": "获取硅谷图表API的配置信息",
+        "tags": ["SiliChart"],
+        "responses": {
+          "200": {
+            "description": "成功返回配置信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "硅谷图表API配置"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apiUrl": {
+                          "type": "string",
+                          "description": "API地址"
+                        },
+                        "hasApiKey": {
+                          "type": "boolean",
+                          "description": "是否配置了API密钥"
+                        }
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "响应时间戳"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/silichart/newssummary": {
+      "post": {
+        "summary": "生成新闻摘要",
+        "description": "使用AI生成新闻内容摘要",
+        "tags": ["SiliChart"],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "新闻来源URL（可选）",
+                    "example": "https://example.com/news/123"
+                  },
+                  "endTime": {
+                    "type": "string",
+                    "description": "结束时间（可选，默认为当前时间）",
+                    "example": "2024-12-31 23:59:59"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功生成新闻摘要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "新闻摘要生成成功"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "summary": {
+                          "type": "string",
+                          "description": "生成的新闻摘要"
+                        },
+                        "originalContent": {
+                          "type": "string",
+                          "description": "原始新闻内容"
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "新闻来源URL"
+                        },
+                        "endTime": {
+                          "type": "string",
+                          "description": "结束时间"
+                        },
+                        "model": {
+                          "type": "string",
+                          "description": "使用的AI模型"
+                        },
+                        "usage": {
+                          "type": "object",
+                          "description": "API使用统计"
+                        }
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "响应时间戳"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "缺少必需参数: content"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "错误时间戳"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "新闻摘要生成失败"
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "错误详情"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "错误时间戳"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
    }
  }
