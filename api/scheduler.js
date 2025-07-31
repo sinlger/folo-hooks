@@ -1,12 +1,13 @@
 const schedule = require('node-schedule');
 const http = require('http');
+const { formatTimestamp } = require('./utils');
 const dayjs = require('dayjs');
 
 // 执行genguonei接口的函数
 function executeGenguonei() {
   const url = 'http://localhost:3000/articles/genguonei';
   
-  console.log(`[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] 开始执行定时任务: genguonei接口`);
+  console.log(`[${formatTimestamp()}] 开始执行定时任务: genguonei接口`);
   
   http.get(url, (response) => {
     let data = '';
@@ -18,16 +19,16 @@ function executeGenguonei() {
     response.on('end', () => {
       try {
         const result = JSON.parse(data);
-        console.log(`[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] 定时任务执行成功，状态码: ${response.statusCode}`);
+        console.log(`[${formatTimestamp()}] 定时任务执行成功，状态码: ${response.statusCode}`);
         console.log(`响应消息: ${result.message || '无消息'}`);
         console.log(`数据长度: ${data.length} 字符`);
       } catch (error) {
-        console.log(`[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] 定时任务执行成功，状态码: ${response.statusCode}`);
+        console.log(`[${formatTimestamp()}] 定时任务执行成功，状态码: ${response.statusCode}`);
         console.log(`数据长度: ${data.length} 字符`);
       }
     });
   }).on('error', (error) => {
-    console.error(`[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] 定时任务执行失败:`, error.message);
+    console.error(`[${formatTimestamp()}] 定时任务执行失败:`, error.message);
   });
 }
 

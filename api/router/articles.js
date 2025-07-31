@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const https = require('https');
+const { errorResponse, formatTimestamp } = require('../utils');
 const dayjs = require('dayjs');
 // 跟国内接口
 router.get('/genguonei', (req, res) => {
-  const endTime = req.query.endTime ? dayjs(req.query.endTime).format('YYYY-MM-DD HH:mm:ss') : dayjs().format('YYYY-MM-DD HH:mm:ss');
-  const startTime = dayjs(endTime).subtract(12, 'hour').format('YYYY-MM-DD HH:mm:ss');
+  const endTime = req.query.endTime ? formatTimestamp(req.query.endTime) : formatTimestamp();
+  const startTime = formatTimestamp(dayjs(endTime).subtract(12, 'hour'));
   
   const query = {
     title: req.query.title || '',
@@ -23,13 +24,13 @@ router.get('/genguonei', (req, res) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
   }).on('error', (error) => {
-    res.status(500).json({ error: '代理请求失败', message: error.message });
+    res.status(500).json(errorResponse('代理请求失败', error.message));
   });
 });
 // 跟国际接口
 router.get('/genguoji', (req, res) => {
-  const endTime = req.query.endTime ? dayjs(req.query.endTime).format('YYYY-MM-DD HH:mm:ss') : dayjs().format('YYYY-MM-DD HH:mm:ss');
-  const startTime = dayjs(endTime).subtract(12, 'hour').format('YYYY-MM-DD HH:mm:ss');
+  const endTime = req.query.endTime ? formatTimestamp(req.query.endTime) : formatTimestamp();
+  const startTime = formatTimestamp(dayjs(endTime).subtract(12, 'hour'));
   
   const query = {
     title: req.query.title || '',
@@ -47,7 +48,7 @@ router.get('/genguoji', (req, res) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
   }).on('error', (error) => {
-    res.status(500).json({ error: '代理请求失败', message: error.message });
+    res.status(500).json(errorResponse('代理请求失败', error.message));
   });
 });
 module.exports = router;

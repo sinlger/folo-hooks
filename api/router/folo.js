@@ -1,5 +1,6 @@
 const express = require('express');
 const https = require('https');
+const { errorResponse } = require('../utils');
 const router = express.Router();
 
 // 代理请求到本地的搜索接口
@@ -11,7 +12,7 @@ router.get('/search', (req, res) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
   }).on('error', (error) => {
-    res.status(500).json({ error: '代理请求失败', message: error.message });
+    res.status(500).json(errorResponse('代理请求失败', error.message));
   });
 });
 
