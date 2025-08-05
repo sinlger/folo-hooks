@@ -3,12 +3,11 @@
  * 包含项目中常用的工具函数和辅助方法
  */
 const { chromium } = require('playwright');
-const path = require('path');
 // 加载环境变量
 require('dotenv').config();
-
 const https = require('https');
 const dayjs = require('dayjs');
+const path = require('path');
 const { gennewsprompt } = require('./prompt/prompt');
 
 /**
@@ -481,14 +480,18 @@ async function inputArticleCategory(page, category) {
   return false;
 }
 
-async function automationPushArticle() {
-    const userDataDir = path.join(__dirname, 'user-data');
-    // 启动本地默认浏览器并指定用户数据目录
+async function automationPushArticle(articleContent) {
+  console.log('执行文章录入流程');
+  // 设置用户数据目录路径
+  const userDataDir = path.join(__dirname, 'user-data');
+  console.log('启动本地默认浏览器并指定用户数据目录')
+  // 启动本地默认浏览器并指定用户数据目录
   const browser = await chromium.launchPersistentContext(userDataDir, {
     headless: false, // headless: false 表示显示浏览器界面
     viewport: null, // 设置为null以使用全屏模式
     channel: 'msedge', // 使用本地安装的Edge浏览器
     args: [
+      '--start-maximized', // 启动时最大化窗口
       '--disable-blink-features=AutomationControlled',
       '--disable-infobars',
       '--no-first-run',
@@ -504,9 +507,10 @@ async function automationPushArticle() {
       "--exclude-switches=enable-automation"
     ]
   });
+
   // 获取默认页面（launchPersistentContext会自动创建一个页面）
   const page = browser.pages()[0] || await browser.newPage();
-
+  console.log('隐藏自动化特征')
   // 隐藏自动化特征
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'webdriver', {
@@ -522,7 +526,6 @@ async function automationPushArticle() {
   // 等待页面加载完成
   await page.waitForLoadState('domcontentloaded');
   console.log('已成功打开百度网站');
-
   // 尝试多种可能的写文章按钮选择器
   const writeButtonSelectors = [
     'a[href*="write"]',
@@ -553,6 +556,12 @@ async function automationPushArticle() {
     }
   }
 
+  // 如果没有找到写文章按钮，暂停流程
+  if (!writeButton || !(await writeButton.isVisible())) {
+    console.log('未找到写文章按钮，保持浏览器打开状态，请手动登录后重试');
+    return;
+  }
+
   if (writeButton && await writeButton.isVisible()) {
     console.log('点击写文章按钮...');
 
@@ -571,7 +580,7 @@ async function automationPushArticle() {
     // 自动录入完整文章
     const articleData = {
       title: '我的第一篇自动化文章',
-      content: '# 这是文章的正文内容。可以包含多个段落和丰富的文本内容。\n- 这里是第二段内容，展示如何使用自动化工具来提高写作效率。'
+      content: `${articleContent}`
     };
     await autoInputArticle(newPage, articleData);
 

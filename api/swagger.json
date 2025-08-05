@@ -585,6 +585,80 @@
           }
         }
       }
+    },
+    "/silichart/test": {
+      "post": {
+        "summary": "测试自动化推送文章",
+        "description": "测试接口，用于验证自动化推送文章功能",
+        "tags": ["SiliChart"],
+        "responses": {
+          "200": {
+            "description": "测试成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "新闻摘要生成成功"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "summary": {
+                          "type": "string",
+                          "example": "操作成功"
+                        }
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "响应时间戳"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器内部错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "操作失败"
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "错误详情"
+                    },
+                    "code": {
+                      "type": "number",
+                      "example": 500
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "description": "错误时间戳"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
    }
  }
