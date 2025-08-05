@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const https = require('https');
-const { errorResponse, formatTimestamp } = require('../utils');
+const { errorResponse, formatTimestamp, automationPushArticle } = require('../utils');
 const dayjs = require('dayjs');
 // 跟国内接口
 router.get('/genguonei', (req, res) => {
   const endTime = req.query.endTime ? formatTimestamp(req.query.endTime) : formatTimestamp();
   const startTime = formatTimestamp(dayjs(endTime).subtract(12, 'hour'));
-  
+
   const query = {
     title: req.query.title || '',
     author: req.query.author || '',
@@ -31,7 +31,7 @@ router.get('/genguonei', (req, res) => {
 router.get('/genguoji', (req, res) => {
   const endTime = req.query.endTime ? formatTimestamp(req.query.endTime) : formatTimestamp();
   const startTime = formatTimestamp(dayjs(endTime).subtract(12, 'hour'));
-  
+
   const query = {
     title: req.query.title || '',
     author: req.query.author || '',

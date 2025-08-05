@@ -2,7 +2,8 @@
  * 通用工具方法文件
  * 包含项目中常用的工具函数和辅助方法
  */
-
+const { chromium } = require('playwright');
+const path = require('path');
 // 加载环境变量
 require('dotenv').config();
 
@@ -159,7 +160,7 @@ async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
     // 验证环境变量
     const apiKey = getEnvVar('SILI_API_KEY');
     const apiUrl = getEnvVar('SILI_CHART_URL');
-    
+
     if (!apiKey || !apiUrl) {
       reject(new Error('缺少必要的环境变量: SILI_API_KEY 或 SILI_CHART_URL'));
       return;
@@ -203,14 +204,14 @@ async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
     const req = https.request(requestOptions, (res) => {
       const chunks = [];
       let totalLength = 0;
-      
+
       // 设置响应编码
       res.setEncoding('utf8');
-      
+
       res.on('data', (chunk) => {
         chunks.push(chunk);
         totalLength += chunk.length;
-        
+
         // 防止响应过大（限制为10MB）
         if (totalLength > 10 * 1024 * 1024) {
           req.destroy();
@@ -218,19 +219,19 @@ async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
           return;
         }
       });
-      
+
       res.on('end', () => {
         try {
           // 使用数组join比字符串拼接更高效
           const data = chunks.join('');
-          
+
           if (!data) {
             reject(new Error('响应数据为空'));
             return;
           }
-          
+
           const response = JSON.parse(data);
-          
+
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve({
               success: true,
@@ -258,13 +259,332 @@ async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
     });
 
     // 设置超时时间为90秒
-    req.setTimeout(1000*60*5);
-    
+    req.setTimeout(1000 * 60 * 5);
+
     // 发送请求数据
     req.write(requestData);
     req.end();
   });
 }
+
+
+// 自动化录入文章标题的函数
+async function autoInputArticleTitle(page, title) {
+  console.log(`开始自动录入文章标题: ${title}`);
+
+  // 常见的文章标题输入框选择器
+  const titleSelectors = [
+    'input[placeholder*="标题"]',
+    'textarea[placeholder*="请输入文章标题（2～30个字）"]',
+    'input[placeholder*="title"]',
+    'input[name="title"]',
+    'input[id="title"]',
+    '.title-input',
+    '.article-title',
+    'textarea[placeholder*="标题"]',
+    '[data-testid*="title"]',
+    '.editor-title',
+    '.post-title'
+  ];
+
+  let titleInput = null;
+
+  // 尝试找到标题输入框
+  for (const selector of titleSelectors) {
+    try {
+      titleInput = await page.locator(selector).first();
+      if (await titleInput.isVisible()) {
+        console.log(`找到标题输入框: ${selector}`);
+        break;
+      }
+    } catch (e) {
+      // 继续尝试下一个选择器
+    }
+  }
+
+  if (titleInput && await titleInput.isVisible()) {
+    try {
+      // 清空现有内容并输入新标题
+      await titleInput.click();
+      await page.waitForTimeout(200); // 等待焦点稳定
+      // 逐字输入标题
+      for (let i = 0; i < title.length; i++) {
+        await titleInput.type(title[i]);
+        await page.waitForTimeout(50); // 每个字之间等待50毫秒
+      }
+      console.log('文章标题录入成功!');
+      return true;
+    } catch (error) {
+      console.log('录入标题时出错:', error.message);
+      return false;
+    }
+  } else {
+    console.log('未找到标题输入框，可能需要等待页面完全加载或手动定位');
+    return false;
+  }
+}
+
+// 自动化录入完整文章的函数
+async function autoInputArticle(page, articleData) {
+  console.log('开始自动录入文章内容...');
+
+  const { title, content, tags = [], category = '' } = articleData;
+
+  // 首先录入标题
+  const titleSuccess = await autoInputArticleTitle(page, title);
+  if (!titleSuccess) {
+    console.log('标题录入失败，继续尝试录入内容...');
+  }
+  // 等待一下让页面稳定
+  await page.waitForTimeout(1000);
+  // 插入图片
+  const imageSucces = await autoInsertImage(page)
+  if (!imageSucces) {
+    console.log('插入图片失败');
+  }
+  // 等待一下让页面稳定
+  await page.waitForTimeout(1000);
+
+  // 录入文章内容
+  const contentSuccess = await inputArticleContent(page, content);
+
+  // 录入标签（如果有）
+  if (tags.length > 0) {
+    await inputArticleTags(page, tags);
+  }
+
+  // 录入分类（如果有）
+  if (category) {
+    await inputArticleCategory(page, category);
+  }
+
+  console.log('文章录入完成!');
+  return { titleSuccess, contentSuccess };
+}
+
+// 录入文章内容的函数
+async function inputArticleContent(page, content) {
+  console.log('开始录入文章内容...');
+
+  try {
+    // 先点击div.ProseMirror
+    const proseMirrorElement = await page.locator('div.ProseMirror').first();
+    if (await proseMirrorElement.isVisible()) {
+      console.log('成功点击ProseMirror编辑器');
+      // 输入内容 - 一个字一个字输入
+      for (let i = 0; i < content.length; i++) {
+        await proseMirrorElement.type(content[i]);
+        await page.waitForTimeout(100); // 每个字之间等待100毫秒
+      }
+      console.log('文章内容录入成功!');
+      return true;
+    } else {
+      console.log('ProseMirror编辑器不可见');
+      return false;
+    }
+  } catch (error) {
+    console.log('点击ProseMirror编辑器失败:', error.message);
+    return false;
+  }
+}
+// 插入图片
+async function autoInsertImage(page) {
+  console.log('开始选择图片')
+
+  try {
+    const proseMirrorElement = await page.locator('div.ProseMirror').first();
+    if (await proseMirrorElement.isVisible()) {
+      await proseMirrorElement.click();
+      await page.waitForTimeout(1000);
+      // 确保焦点在编辑器上，然后触发Ctrl+P
+      await proseMirrorElement.focus();
+      await page.waitForTimeout(500);
+      await page.keyboard.down('Control');
+      await page.keyboard.press('KeyP');
+      await page.keyboard.up('Control');
+      await page.waitForTimeout(1000);
+      const myImageElement = await page.locator('div.byte-tabs-header-title:has-text("我的素材")');
+      await myImageElement.click();
+      await page.waitForTimeout(1000);
+      const fristImage = await page.locator('div.resource-item-img').first();
+      await fristImage.click();
+      await page.waitForTimeout(1000);
+      const submitImage = await page.locator('button.byte-btn.byte-btn-primary.byte-btn-size-large.byte-btn-shape-square:has(span:text("确定"))').first();
+      await submitImage.click();
+      await page.waitForTimeout(5000);
+      return true;
+    }
+  } catch (error) {
+    console.log('点击ProseMirror编辑器失败:', error.message);
+    return false;
+  }
+}
+
+// 录入文章标签的函数
+async function inputArticleTags(page, tags) {
+  console.log('开始录入文章标签...');
+
+  const tagSelectors = [
+    'input[placeholder*="标签"]',
+    'input[placeholder*="tag"]',
+    'input[name="tags"]',
+    'input[id="tags"]',
+    '.tag-input',
+    '.tags-input'
+  ];
+
+  for (const selector of tagSelectors) {
+    try {
+      const tagInput = await page.locator(selector).first();
+      if (await tagInput.isVisible()) {
+        console.log(`找到标签输入框: ${selector}`);
+        await tagInput.click();
+        await tagInput.fill(tags.join(', '));
+        console.log('标签录入成功!');
+        return true;
+      }
+    } catch (e) {
+      // 继续尝试下一个选择器
+    }
+  }
+
+  console.log('未找到标签输入框');
+  return false;
+}
+
+// 录入文章分类的函数
+async function inputArticleCategory(page, category) {
+  console.log('开始设置文章分类...');
+
+  const categorySelectors = [
+    'select[name="category"]',
+    'select[id="category"]',
+    '.category-select',
+    '.category-dropdown'
+  ];
+
+  for (const selector of categorySelectors) {
+    try {
+      const categorySelect = await page.locator(selector).first();
+      if (await categorySelect.isVisible()) {
+        console.log(`找到分类选择器: ${selector}`);
+        await categorySelect.selectOption({ label: category });
+        console.log('分类设置成功!');
+        return true;
+      }
+    } catch (e) {
+      // 继续尝试下一个选择器
+    }
+  }
+
+  console.log('未找到分类选择器');
+  return false;
+}
+
+async function automationPushArticle() {
+    const userDataDir = path.join(__dirname, 'user-data');
+    // 启动本地默认浏览器并指定用户数据目录
+  const browser = await chromium.launchPersistentContext(userDataDir, {
+    headless: false, // headless: false 表示显示浏览器界面
+    viewport: null, // 设置为null以使用全屏模式
+    channel: 'msedge', // 使用本地安装的Edge浏览器
+    args: [
+      '--disable-blink-features=AutomationControlled',
+      '--disable-infobars',
+      '--no-first-run',
+      '--disable-infobars',
+      '--no-default-browser-check',
+      '--disable-web-security',
+      '--disable-extensions-except',
+      '--disable-features=VizDisplayCompositor',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-plugins-discovery',
+      '--no-first-run',
+      '--disable-default-apps',
+      "--exclude-switches=enable-automation"
+    ]
+  });
+  // 获取默认页面（launchPersistentContext会自动创建一个页面）
+  const page = browser.pages()[0] || await browser.newPage();
+
+  // 隐藏自动化特征
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => undefined,
+    });
+
+    delete navigator.__proto__.webdriver;
+  });
+
+  // 打开百度网站
+  await page.goto('https://www.toutiao.com');
+
+  // 等待页面加载完成
+  await page.waitForLoadState('domcontentloaded');
+  console.log('已成功打开百度网站');
+
+  // 尝试多种可能的写文章按钮选择器
+  const writeButtonSelectors = [
+    'a[href*="write"]',
+    'a[href*="create"]',
+    'a[href*="publish"]',
+    'button:has-text("写文章")',
+    'a:has-text("写文章")',
+    'button:has-text("发布")',
+    'a:has-text("发布")',
+    'button:has-text("创作")',
+    'a:has-text("创作")',
+    '[data-testid*="write"]',
+    '.write-btn',
+    '.create-btn',
+    '.publish-btn'
+  ];
+
+  let writeButton = null;
+  for (const selector of writeButtonSelectors) {
+    try {
+      writeButton = await page.locator(selector).first();
+      if (await writeButton.isVisible()) {
+        console.log(`找到写文章按钮: ${selector}`);
+        break;
+      }
+    } catch (e) {
+      // 继续尝试下一个选择器
+    }
+  }
+
+  if (writeButton && await writeButton.isVisible()) {
+    console.log('点击写文章按钮...');
+
+    // 监听新页面打开事件
+    const [newPage] = await Promise.all([
+      browser.waitForEvent('page'),
+      writeButton.click()
+    ]);
+
+    console.log('写文章页面已在新标签页中打开！');
+    console.log('新页面URL:', newPage.url());
+
+    // 等待新页面加载
+    await newPage.waitForLoadState('networkidle');
+
+    // 自动录入完整文章
+    const articleData = {
+      title: '我的第一篇自动化文章',
+      content: '# 这是文章的正文内容。可以包含多个段落和丰富的文本内容。\n- 这里是第二段内容，展示如何使用自动化工具来提高写作效率。'
+    };
+    await autoInputArticle(newPage, articleData);
+
+    console.log('停止操作，浏览器将保持打开状态');
+    // 浏览器保持打开，不执行关闭操作
+  } else {
+    console.log('未找到写文章按钮，可能需要登录或按钮位置发生变化');
+    console.log('页面将保持打开状态，请手动查找写文章按钮');
+    console.log('浏览器将在30秒后自动关闭...');
+    await page.waitForTimeout(30000);
+  }
+}
+
 module.exports = {
   formatTimestamp,
   successResponse,
@@ -276,5 +596,6 @@ module.exports = {
   hasEnvVar,
   getEnvVar,
   gennewsprompt,
-  genNewsCollection
+  genNewsCollection,
+  automationPushArticle
 };
