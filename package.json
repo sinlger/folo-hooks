@@ -22,5 +22,10 @@
   },
   "engines": {
     "node": "22.x"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "user-data/**/*"
+    ]
   }
 }

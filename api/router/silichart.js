@@ -14,7 +14,7 @@ const fetchNewsData = (endTime) => {
   return new Promise((resolve, reject) => {
     const queryParams = new URLSearchParams({
       endTime: endTime,
-      limit: 2,
+      limit: 100,
       page: 1
     }).toString();
 

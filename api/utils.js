@@ -483,7 +483,7 @@ async function inputArticleCategory(page, category) {
 async function automationPushArticle(articleContent) {
   console.log('执行文章录入流程');
   // 设置用户数据目录路径
-  const userDataDir = path.join(__dirname, 'user-data');
+  const userDataDir = path.join(process.cwd(), 'user-data');
   console.log('启动本地默认浏览器并指定用户数据目录')
   // 启动本地默认浏览器并指定用户数据目录
   const browser = await chromium.launchPersistentContext(userDataDir, {
