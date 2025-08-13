@@ -3,9 +3,9 @@
  * 包含项目中常用的工具函数和辅助方法
  */
 const { chromium } = require('playwright');
+const OpenAI = require('openai');
 // 加载环境变量
 require('dotenv').config();
-const https = require('https');
 const dayjs = require('dayjs');
 const path = require('path');
 const { gennewsprompt } = require('./prompt/prompt');
@@ -16,7 +16,7 @@ const { gennewsprompt } = require('./prompt/prompt');
  * @param {string} format - 格式化模式，默认为 'YYYY-MM-DD HH:mm:ss'
  * @returns {string} 格式化后的时间字符串
  */
-function formatTimestamp(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
+function formatTimestamp (date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
   return dayjs(date).format(format);
 }
 
@@ -26,7 +26,7 @@ function formatTimestamp(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
  * @param {string} message - 响应消息
  * @returns {object} 标准化的成功响应对象
  */
-function successResponse(data = null, message = '操作成功') {
+function successResponse (data = null, message = '操作成功') {
   return {
     success: true,
     message,
@@ -42,7 +42,7 @@ function successResponse(data = null, message = '操作成功') {
  * @param {number} code - 错误代码
  * @returns {object} 标准化的错误响应对象
  */
-function errorResponse(message = '操作失败', error = null, code = 500) {
+function errorResponse (message = '操作失败', error = null, code = 500) {
   const response = {
     success: false,
     message,
@@ -66,7 +66,7 @@ function errorResponse(message = '操作失败', error = null, code = 500) {
  * @param {string[]} requiredFields - 必需字段数组
  * @returns {object|null} 如果验证失败返回错误对象，成功返回null
  */
-function validateRequiredParams(params, requiredFields) {
+function validateRequiredParams (params, requiredFields) {
   const missingFields = [];
 
   for (const field of requiredFields) {
@@ -92,7 +92,7 @@ function validateRequiredParams(params, requiredFields) {
  * @param {any} defaultValue - 解析失败时的默认值
  * @returns {any} 解析结果或默认值
  */
-function safeJsonParse(jsonString, defaultValue = null) {
+function safeJsonParse (jsonString, defaultValue = null) {
   try {
     return JSON.parse(jsonString);
   } catch (error) {
@@ -106,7 +106,7 @@ function safeJsonParse(jsonString, defaultValue = null) {
  * @param {number} ms - 延迟毫秒数
  * @returns {Promise} Promise对象
  */
-function delay(ms) {
+function delay (ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -116,7 +116,7 @@ function delay(ms) {
  * @param {string} chars - 可选字符集
  * @returns {string} 随机字符串
  */
-function generateRandomString(length = 8, chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
+function generateRandomString (length = 8, chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') {
   let result = '';
   for (let i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -129,7 +129,7 @@ function generateRandomString(length = 8, chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabc
  * @param {string} varName - 环境变量名
  * @returns {boolean} 是否存在
  */
-function hasEnvVar(varName) {
+function hasEnvVar (varName) {
   return process.env[varName] !== undefined && process.env[varName] !== '';
 }
 
@@ -139,7 +139,7 @@ function hasEnvVar(varName) {
  * @param {any} defaultValue - 默认值
  * @returns {any} 环境变量值或默认值
  */
-function getEnvVar(varName, defaultValue = null) {
+function getEnvVar (varName, defaultValue = null) {
   return process.env[varName] || defaultValue;
 }
 /**
@@ -148,127 +148,44 @@ function getEnvVar(varName, defaultValue = null) {
  * @param {string} systemPrompt - 系统提示词，默认使用gennewsprompt
  * @returns {Promise<object>} 返回API响应结果
  */
-async function genNewsCollection(userContent, systemPrompt = gennewsprompt) {
-  return new Promise((resolve, reject) => {
-    // 验证必要参数
-    if (!userContent) {
-      reject(new Error('用户内容不能为空'));
-      return;
-    }
-
-    // 验证环境变量
-    const apiKey = getEnvVar('SILI_API_KEY');
-    const apiUrl = getEnvVar('SILI_CHART_URL');
-
-    if (!apiKey || !apiUrl) {
-      reject(new Error('缺少必要的环境变量: SILI_API_KEY 或 SILI_CHART_URL'));
-      return;
-    }
-
-    const requestData = JSON.stringify({
-      model: 'Qwen/Qwen3-235B-A22B-Instruct-2507',
-      stream: false,
-      max_tokens: 8192,
-      temperature: 0.6,
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'user',
-          content: userContent
-        }
-      ]
-    });
-
-    const options = {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'folo-hooks/1.0.0'
-      }
-    };
-
-    const url = new URL(apiUrl);
-    const requestOptions = {
-      hostname: url.hostname,
-      port: url.port || (url.protocol === 'https:' ? 443 : 80),
-      path: url.pathname,
-      method: options.method,
-      headers: options.headers
-    };
-
-    const req = https.request(requestOptions, (res) => {
-      const chunks = [];
-      let totalLength = 0;
-
-      // 设置响应编码
-      res.setEncoding('utf8');
-
-      res.on('data', (chunk) => {
-        chunks.push(chunk);
-        totalLength += chunk.length;
-
-        // 防止响应过大（限制为10MB）
-        if (totalLength > 10 * 1024 * 1024) {
-          req.destroy();
-          reject(new Error('响应数据过大'));
-          return;
-        }
+async function genNewsCollection (userContent, systemPrompt = gennewsprompt) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const openai = new OpenAI({
+        baseURL: process.env.SILI_CHART_URL,
+        apiKey: process.env.SILI_API_KEY,
       });
-
-      res.on('end', () => {
-        try {
-          // 使用数组join比字符串拼接更高效
-          const data = chunks.join('');
-
-          if (!data) {
-            reject(new Error('响应数据为空'));
-            return;
-          }
-
-          const response = JSON.parse(data);
-
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve({
-              success: true,
-              data: response,
-              statusCode: res.statusCode,
-              timestamp: formatTimestamp(),
-              responseSize: totalLength
-            });
-          } else {
-            reject(new Error(`API请求失败: ${res.statusCode} - ${response.error?.message || '未知错误'}`));
-          }
-        } catch (parseError) {
-          reject(new Error(`响应解析失败: ${parseError.message}`));
-        }
+      console.log(gennewsprompt)
+      console.log(userContent)
+      const completion = await openai.chat.completions.create({
+        model: "qwen-plus",  //此处以qwen-plus为例，可按需更换模型名称。模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent }
+        ],
       });
-    });
-
-    req.on('error', (error) => {
-      reject(new Error(`请求失败: ${error.message}`));
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('请求超时'));
-    });
-
-    // 设置超时时间为90秒
-    req.setTimeout(1000 * 60 * 5);
-
-    // 发送请求数据
-    req.write(requestData);
-    req.end();
+      
+      console.log('OpenAI API 调用成功:', JSON.stringify(completion));
+      
+      resolve({
+        success: true,
+        data: completion,
+        error: null
+      });
+    } catch (error) {
+      console.error('OpenAI API 调用失败:', error);
+      resolve({
+        success: false,
+        data: null,
+        error: error.message || '未知错误'
+      });
+    }
   });
 }
 
 
 // 自动化录入文章标题的函数
-async function autoInputArticleTitle(page, title) {
+async function autoInputArticleTitle (page, title) {
   console.log(`开始自动录入文章标题: ${title}`);
 
   // 常见的文章标题输入框选择器
@@ -324,7 +241,7 @@ async function autoInputArticleTitle(page, title) {
 }
 
 // 自动化录入完整文章的函数
-async function autoInputArticle(page, articleData) {
+async function autoInputArticle (page, articleData) {
   console.log('开始自动录入文章内容...');
 
   const { title, content, tags = [], category = '' } = articleData;
@@ -362,7 +279,7 @@ async function autoInputArticle(page, articleData) {
 }
 
 // 录入文章内容的函数
-async function inputArticleContent(page, content) {
+async function inputArticleContent (page, content) {
   console.log('开始录入文章内容...');
 
   try {
@@ -387,7 +304,7 @@ async function inputArticleContent(page, content) {
   }
 }
 // 插入图片
-async function autoInsertImage(page) {
+async function autoInsertImage (page) {
   console.log('开始选择图片')
 
   try {
@@ -420,7 +337,7 @@ async function autoInsertImage(page) {
 }
 
 // 录入文章标签的函数
-async function inputArticleTags(page, tags) {
+async function inputArticleTags (page, tags) {
   console.log('开始录入文章标签...');
 
   const tagSelectors = [
@@ -452,7 +369,7 @@ async function inputArticleTags(page, tags) {
 }
 
 // 录入文章分类的函数
-async function inputArticleCategory(page, category) {
+async function inputArticleCategory (page, category) {
   console.log('开始设置文章分类...');
 
   const categorySelectors = [
@@ -480,7 +397,7 @@ async function inputArticleCategory(page, category) {
   return false;
 }
 
-async function automationPushArticle(articleContent) {
+async function automationPushArticle (articleContent) {
   console.log('执行文章录入流程');
   // 设置用户数据目录路径
   const userDataDir = path.join(process.cwd(), 'user-data');
@@ -579,7 +496,7 @@ async function automationPushArticle(articleContent) {
 
     // 自动录入完整文章
     const articleData = {
-      title: '我的第一篇自动化文章',
+      title: '今日要闻',
       content: `${articleContent}`
     };
     await autoInputArticle(newPage, articleData);
