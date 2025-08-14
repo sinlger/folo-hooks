@@ -224,9 +224,23 @@ async function autoInputArticleTitle (page, title) {
       await titleInput.click();
       await page.waitForTimeout(200); // 等待焦点稳定
       // 逐字输入标题
+      // 模拟人类输入：随机输入速度和偶尔停顿
       for (let i = 0; i < title.length; i++) {
         await titleInput.type(title[i]);
-        await page.waitForTimeout(50); // 每个字之间等待50毫秒
+        
+        // 随机输入间隔，模拟人类打字速度
+        const baseDelay = Math.random() * 100 + 50; // 50-150毫秒基础延迟
+        
+        // 偶尔有较长停顿（模拟思考）
+        const shouldPause = Math.random() < 0.1; // 10%概率停顿
+        const pauseDelay = shouldPause ? Math.random() * 500 + 200 : 0; // 200-700毫秒停顿
+        
+        // 在标点符号后稍作停顿
+        const isPunctuation = /[，。！？；：、]/.test(title[i]);
+        const punctuationDelay = isPunctuation ? Math.random() * 200 + 100 : 0; // 100-300毫秒
+        
+        const totalDelay = baseDelay + pauseDelay + punctuationDelay;
+        await page.waitForTimeout(totalDelay);
       }
       console.log('文章标题录入成功!');
       return true;
@@ -288,9 +302,27 @@ async function inputArticleContent (page, content) {
     if (await proseMirrorElement.isVisible()) {
       console.log('成功点击ProseMirror编辑器');
       // 输入内容 - 一个字一个字输入
+      // 模拟人类输入：随机输入速度和偶尔停顿
       for (let i = 0; i < content.length; i++) {
         await proseMirrorElement.type(content[i]);
-        await page.waitForTimeout(100); // 每个字之间等待100毫秒
+        
+        // 随机输入间隔，模拟人类打字速度
+        const baseDelay = Math.random() * 120 + 60; // 60-180毫秒基础延迟
+        
+        // 偶尔有较长停顿（模拟思考）
+        const shouldPause = Math.random() < 0.08; // 8%概率停顿
+        const pauseDelay = shouldPause ? Math.random() * 600 + 300 : 0; // 300-900毫秒停顿
+        
+        // 在标点符号后稍作停顿
+        const isPunctuation = /[，。！？；：、]/.test(content[i]);
+        const punctuationDelay = isPunctuation ? Math.random() * 250 + 150 : 0; // 150-400毫秒
+        
+        // 在换行符后稍作停顿
+        const isNewline = content[i] === '\n';
+        const newlineDelay = isNewline ? Math.random() * 300 + 200 : 0; // 200-500毫秒
+        
+        const totalDelay = baseDelay + pauseDelay + punctuationDelay + newlineDelay;
+        await page.waitForTimeout(totalDelay);
       }
       console.log('文章内容录入成功!');
       return true;
@@ -501,13 +533,16 @@ async function automationPushArticle (articleContent) {
     };
     await autoInputArticle(newPage, articleData);
 
-    console.log('停止操作，浏览器将保持打开状态');
-    // 浏览器保持打开，不执行关闭操作
+    console.log('文章录入完成，浏览器将在1分钟后自动关闭...');
+    await page.waitForTimeout(60000);
+    await browser.close();
+    console.log('浏览器已关闭');
   } else {
     console.log('未找到写文章按钮，可能需要登录或按钮位置发生变化');
-    console.log('页面将保持打开状态，请手动查找写文章按钮');
-    console.log('浏览器将在30秒后自动关闭...');
-    await page.waitForTimeout(30000);
+    console.log('浏览器将在1分钟后自动关闭...');
+    await page.waitForTimeout(60000);
+    await browser.close();
+    console.log('浏览器已关闭');
   }
 }
 

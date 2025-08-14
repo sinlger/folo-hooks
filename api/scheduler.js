@@ -5,11 +5,26 @@ const dayjs = require('dayjs');
 
 // 执行genguonei接口的函数
 function executeGenguonei() {
-  const url = 'http://localhost:3000/articles/genguonei';
+  const postData = JSON.stringify({
+    endTime: formatTimestamp(new Date()),
+    category: '国内新闻',
+    page: 2
+  });
+  
+  const options = {
+    hostname: 'localhost',
+    port: 3000,
+    path: '/silichart/newssummary',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
   
   console.log(`[${formatTimestamp()}] 开始执行定时任务: genguonei接口`);
   
-  http.get(url, (response) => {
+  const req = http.request(options, (response) => {
     let data = '';
     
     response.on('data', (chunk) => {
@@ -27,9 +42,14 @@ function executeGenguonei() {
         console.log(`数据长度: ${data.length} 字符`);
       }
     });
-  }).on('error', (error) => {
+  });
+  
+  req.on('error', (error) => {
     console.error(`[${formatTimestamp()}] 定时任务执行失败:`, error.message);
   });
+  
+  req.write(postData);
+  req.end();
 }
 
 // 设置定时任务：每天早上8点执行
