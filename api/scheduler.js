@@ -8,7 +8,7 @@ function executeGenguonei() {
   const postData = JSON.stringify({
     endTime: formatTimestamp(new Date()),
     category: '国内新闻',
-    page: 2
+    page: 24
   });
   
   const options = {
@@ -53,16 +53,16 @@ function executeGenguonei() {
 }
 
 // 设置定时任务：每天早上8点执行
-schedule.scheduleJob('0 8 * * *', () => {
-  console.log('触发早上8点定时任务');
+schedule.scheduleJob('0 * * * *', () => {
+  console.log(`触发${dayjs().format('HH:mm')}定时任务`);
   executeGenguonei();
 });
 
 // 设置定时任务：每天晚上20点执行
-schedule.scheduleJob('0 20 * * *', () => {
-  console.log('触发晚上20点定时任务');
-  executeGenguonei();
-});
+// schedule.scheduleJob('0 20 * * *', () => {
+//   console.log('触发晚上20点定时任务');
+//   executeGenguonei();
+// });
 
 console.log('定时任务已启动:');
 console.log('- 每天早上8:00执行genguonei接口');
