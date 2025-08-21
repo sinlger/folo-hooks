@@ -4,13 +4,14 @@ const { formatTimestamp } = require('./utils');
 const dayjs = require('dayjs');
 
 // 执行genguonei接口的函数
-function executeGenguonei() {
+function executeGenguonei () {
+  const endTime = formatTimestamp(new Date());
   const postData = JSON.stringify({
-    endTime: formatTimestamp(new Date()),
+    endTime: endTime,
+    page: 24,
     category: '国内新闻',
-    page: 24
   });
-  
+
   const options = {
     hostname: 'localhost',
     port: 3000,
@@ -21,16 +22,16 @@ function executeGenguonei() {
       'Content-Length': Buffer.byteLength(postData)
     }
   };
-  
+
   console.log(`[${formatTimestamp()}] 开始执行定时任务: genguonei接口`);
-  
+
   const req = http.request(options, (response) => {
     let data = '';
-    
+
     response.on('data', (chunk) => {
       data += chunk;
     });
-    
+
     response.on('end', () => {
       try {
         const result = JSON.parse(data);
@@ -43,16 +44,17 @@ function executeGenguonei() {
       }
     });
   });
-  
+
   req.on('error', (error) => {
     console.error(`[${formatTimestamp()}] 定时任务执行失败:`, error.message);
   });
-  
+
   req.write(postData);
   req.end();
 }
 
 // 设置定时任务：每天早上8点执行
+// 设置每天6点、12点和18点执行的定时任务
 schedule.scheduleJob('0 * * * *', () => {
   console.log(`触发${dayjs().format('HH:mm')}定时任务`);
   executeGenguonei();

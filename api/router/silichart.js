@@ -15,10 +15,10 @@ router.get('/', async (req, res) => {
 });
 
 // 请求内部API获取新闻数据
-const fetchNewsData = ({ endTime, category = '国内新闻', page = 2 }) => {
+const fetchNewsData = ({ endTime, startTime, category = '国内新闻', page = 4 }) => {
   return new Promise((resolve, reject) => {
     const formattedEndTime = endTime ? formatTimestamp(endTime) : formatTimestamp();
-    const startTime = formatTimestamp(dayjs(formattedEndTime).subtract(24 / page, 'hour'));
+    const time = startTime ? startTime : formatTimestamp(dayjs(formattedEndTime).subtract(24 / page, 'hour'));
     const query = {
       title: '',
       author: '',
@@ -26,7 +26,7 @@ const fetchNewsData = ({ endTime, category = '国内新闻', page = 2 }) => {
       category,
       limit: 100,
       page: 1,
-      startTime: startTime,
+      startTime: time,
       endTime: formattedEndTime
     };
 
@@ -55,13 +55,13 @@ const fetchNewsData = ({ endTime, category = '国内新闻', page = 2 }) => {
 // POST /silichart/newssummary - 生成新闻摘要
 router.post('/newssummary', async (req, res) => {
   try {
-    const { endTime = formatTimestamp(new Date()), category = '国内新闻', page = 2 } = req.body;
+    const { endTime = formatTimestamp(new Date()), category = '国内新闻', page } = req.body;
 
     // 请求/articles/genguonei 接口获取新闻数据
     const newsData = await fetchNewsData({
       endTime,
-      category,
-      page
+      page,
+      category
     });
     // 将新闻数据转换为字符串作为content
     const content = JSON.stringify(newsData.data.map(item => ({ content: item.content, title: item.title })));
@@ -82,11 +82,11 @@ router.post('/newssummary', async (req, res) => {
     for (let i = 0; i < newsItems.length; i++) {
       const newsItem = newsItems[i];
       const singleNewsContent = JSON.stringify([newsItem]);
-      
+
       try {
         console.log(`处理第 ${i + 1}/${newsItems.length} 条新闻: ${newsItem.title}`);
         const result = await genNewsCollection(singleNewsContent);
-        
+
         if (result.success && result.data.choices?.[0]?.message?.content) {
           const summary = result.data.choices[0].message.content;
           summaries.push({
@@ -107,19 +107,19 @@ router.post('/newssummary', async (req, res) => {
     if (summaries.length > 0) {
       // 将所有摘要合并为一个字符串
       const allSummaries = summaries.map(item => item.summary).join('\n\n');
-      
+
       const response = successResponse({
         summaries: summaries,
         totalProcessed: newsItems.length,
         successCount: summaries.length,
         endTime: endTime || null
       }, `新闻摘要生成完成，成功 ${summaries.length}/${newsItems.length} 条`);
-      
+
       console.log(`所有摘要生成完成，成功 ${summaries.length} 条`);
-      
+
       // 将所有摘要传递给automationPushArticle
       await automationPushArticle(allSummaries);
-      
+
       res.json(response);
     } else {
       res.status(500).json(errorResponse('所有新闻摘要生成失败'));
